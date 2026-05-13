@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#06B6D4"/>
+  <g transform="translate(64 80) rotate(-3 192 192)">
+    <g stroke="#3A2410" stroke-width="8" fill="#F4C430">
+      <rect x="0" y="0" width="120" height="100" rx="10"/>
+      <rect x="132" y="0" width="120" height="100" rx="10"/>
+      <rect x="264" y="0" width="120" height="100" rx="10"/>
+      <rect x="0" y="112" width="120" height="100" rx="10"/>
+      <rect x="132" y="112" width="120" height="100" rx="10"/>
+      <rect x="264" y="112" width="120" height="100" rx="10"/>
+      <rect x="0" y="224" width="120" height="100" rx="10"/>
+      <rect x="132" y="224" width="120" height="100" rx="10"/>
+      <rect x="264" y="224" width="120" height="100" rx="10"/>
+    </g>
+  </g>
+  <circle cx="400" cy="120" r="56" fill="#FFD700" stroke="#3A2410" stroke-width="10"/>
+  <text x="400" y="148" text-anchor="middle" font-family="Impact, Arial Black, sans-serif" font-size="72" fill="#3A2410">¢</text>
+</svg>
