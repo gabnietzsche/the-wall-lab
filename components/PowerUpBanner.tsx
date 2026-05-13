@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { BrickContent, POWERUP_LABELS, POWERUP_DESCRIPTIONS, BONUS } from "@/lib/types";
 
@@ -9,10 +9,12 @@ interface Props {
 }
 
 export default function PowerUpBanner({ type, onDone }: Props) {
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
   useEffect(() => {
-    const t = setTimeout(onDone, 1500);
+    const t = setTimeout(() => onDoneRef.current(), 1000);
     return () => clearTimeout(t);
-  }, [onDone]);
+  }, []);
 
   const isBonus = BONUS.includes(type);
   const label = POWERUP_LABELS[type];
