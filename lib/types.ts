@@ -58,8 +58,14 @@ export interface BrickRow {
   position: number;
   front_hits: number;
   back_hits: number;
+  /** true quando ENTRAMBI i lati sono rotti (derivato server-side) */
   broken: boolean;
+  /** Timestamp ISO quando G1 ha rotto il suo lato; null se intatto */
+  front_broken_at: string | null;
+  /** Timestamp ISO quando G2 ha rotto il suo lato; null se intatto */
+  back_broken_at: string | null;
   revealed_content: BrickContent | null;
+  /** null = ancora intatto, 0 = perso per collisione, 1/2 = preso da quel giocatore */
   taken_by: number | null;
 }
 

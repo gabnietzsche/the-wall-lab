@@ -7,6 +7,7 @@ type Key =
   | "coin"
   | "bonus"
   | "malus"
+  | "collision"
   | "win"
   | "lose";
 
@@ -121,15 +122,34 @@ export function play(key: Key) {
         setTimeout(() => tone(1320, 0.18, "square", 0.32, 0.002, 0.15), 60);
         break;
       case "bonus":
-        // arpeggio breve up
-        tone(523, 0.08, "triangle", 0.3, 0.002, 0.06);
-        setTimeout(() => tone(659, 0.08, "triangle", 0.3, 0.002, 0.06), 70);
-        setTimeout(() => tone(784, 0.14, "triangle", 0.35, 0.002, 0.12), 140);
+        // Trionfale: arpeggio maggiore Do-Mi-Sol-Do, voce triangolo + ottava square per "brillantezza"
+        tone(523, 0.09, "triangle", 0.32, 0.002, 0.07);
+        setTimeout(() => {
+          tone(659, 0.09, "triangle", 0.32, 0.002, 0.07);
+          tone(1318, 0.09, "square", 0.08, 0.002, 0.07);
+        }, 70);
+        setTimeout(() => {
+          tone(784, 0.1, "triangle", 0.34, 0.002, 0.08);
+          tone(1568, 0.1, "square", 0.1, 0.002, 0.08);
+        }, 140);
+        setTimeout(() => {
+          tone(1047, 0.32, "triangle", 0.38, 0.002, 0.28);
+          tone(2093, 0.32, "square", 0.1, 0.002, 0.28);
+        }, 210);
         break;
       case "malus":
-        // discendente, suono "cattivo"
-        tone(330, 0.18, "sawtooth", 0.32, 0.002, 0.15, 110);
-        noise(0.1, 0.2, 600);
+        // Dissonanza cupa: due note minor 2nd ravvicinate + sub-bass + rumore
+        tone(220, 0.3, "sawtooth", 0.32, 0.002, 0.25, 90);
+        tone(233, 0.3, "sawtooth", 0.28, 0.002, 0.25, 95);
+        tone(110, 0.4, "sine", 0.34, 0.002, 0.35, 55);
+        noise(0.22, 0.18, 500);
+        setTimeout(() => tone(196, 0.2, "sawtooth", 0.28, 0.002, 0.18, 80), 160);
+        break;
+      case "collision":
+        // Suono "ufff perso": vibrazione corta e dissonante
+        tone(440, 0.06, "square", 0.3, 0.002, 0.05, 220);
+        setTimeout(() => tone(330, 0.18, "sawtooth", 0.32, 0.002, 0.16, 110), 70);
+        noise(0.08, 0.18, 800);
         break;
       case "win":
         tone(523, 0.1, "square", 0.3, 0.002, 0.08);

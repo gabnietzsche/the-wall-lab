@@ -2,7 +2,7 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import type { BrickRow, BrickContent } from "@/lib/types";
-import Brick from "./Brick";
+import Brick, { type Outcome } from "./Brick";
 
 interface Props {
   bricks: BrickRow[];
@@ -12,8 +12,19 @@ interface Props {
   revealed: Map<number, BrickContent>;
 }
 
+function computeOutcome(
+  mySideBroken: boolean,
+  takenBy: number | null,
+  mySide: 1 | 2
+): Outcome {
+  if (!mySideBroken) return null;
+  if (takenBy === 0) return "lost";
+  if (takenBy === mySide) return "won";
+  // taken_by è dell'avversario (o null in edge case): l'ha preso prima
+  return "opp_taken";
+}
+
 export default function BrickWall({ bricks, mySide, onTap, disabled, revealed }: Props) {
-  // Riordina in mappa per accesso veloce
   const byPos = useMemo(() => {
     const m = new Map<number, BrickRow>();
     for (const b of bricks) m.set(b.position, b);
@@ -30,19 +41,22 @@ export default function BrickWall({ bricks, mySide, onTap, disabled, revealed }:
       {Array.from({ length: 25 }).map((_, pos) => {
         const b = byPos.get(pos);
         const myHits = mySide === 1 ? b?.front_hits ?? 0 : b?.back_hits ?? 0;
-        const oppHits = mySide === 1 ? b?.back_hits ?? 0 : b?.front_hits ?? 0;
+        const mySideBroken =
+          mySide === 1
+            ? !!b?.front_broken_at
+            : !!b?.back_broken_at;
+        const outcome = computeOutcome(mySideBroken, b?.taken_by ?? null, mySide);
         return (
           <Brick
             key={pos}
             position={pos}
             myHits={myHits}
-            oppHits={oppHits}
-            broken={b?.broken ?? false}
-            takenByMe={b?.taken_by === mySide}
-            content={b?.revealed_content as BrickContent | undefined}
+            mySideBroken={mySideBroken}
+            outcome={outcome}
+            content={b?.revealed_content ?? undefined}
             revealed={revealed.has(pos)}
             onTap={() => !disabled && onTap(pos)}
-            disabled={disabled}
+            disabled={disabled || mySideBroken}
           />
         );
       })}

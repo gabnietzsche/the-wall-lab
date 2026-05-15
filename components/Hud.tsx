@@ -1,5 +1,4 @@
 "use client";
-import { ActiveEffect } from "@/lib/types";
 
 interface Props {
   secondsLeft: number;
@@ -11,7 +10,6 @@ interface Props {
   cooldownLeft: number;
   showOppScore: boolean;
   oppCanSeeMyScore: boolean;
-  myEffects: ActiveEffect[];
 }
 
 export default function Hud({
@@ -24,19 +22,9 @@ export default function Hud({
   cooldownLeft,
   showOppScore,
   oppCanSeeMyScore,
-  myEffects,
 }: Props) {
   const cooldownPct = Math.min(100, Math.max(0, (cooldownLeft / 2000) * 100));
   const timeLow = secondsLeft <= 10;
-
-  // Bonus attivi (lato visivo)
-  const activeBadges = myEffects.filter(
-    (e) =>
-      e.type === "pistola" ||
-      e.type === "scalpello" ||
-      e.type === "scudo" ||
-      e.type === "raggi-x"
-  );
 
   return (
     <header className="px-3 pt-3 pb-2 flex flex-col gap-2">
@@ -72,18 +60,6 @@ export default function Hud({
             style={{ width: `${100 - cooldownPct}%` }}
           />
         </div>
-        {activeBadges.length > 0 && (
-          <div className="flex gap-1">
-            {activeBadges.slice(0, 3).map((e, i) => (
-              <span
-                key={i}
-                className="px-2 py-1 text-sm bg-comic-pink text-white rounded-md comic-border-thin"
-              >
-                {labelOf(e.type)}
-              </span>
-            ))}
-          </div>
-        )}
       </div>
     </header>
   );
@@ -117,17 +93,3 @@ function ScoreBadge({
   );
 }
 
-function labelOf(type: string) {
-  switch (type) {
-    case "pistola":
-      return "🔫 x2";
-    case "scalpello":
-      return "Scalp x2";
-    case "scudo":
-      return "Scudo";
-    case "raggi-x":
-      return "Raggi X";
-    default:
-      return type;
-  }
-}

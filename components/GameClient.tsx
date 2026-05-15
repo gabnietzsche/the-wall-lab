@@ -16,9 +16,11 @@ import type {
   ActiveEffect,
   BrickContent,
 } from "@/lib/types";
+import { BONUS } from "@/lib/types";
 import BrickWall from "./BrickWall";
 import Hud from "./Hud";
-import PowerUpBanner from "./PowerUpBanner";
+import PowerUpBanner, { type BannerKind } from "./PowerUpBanner";
+import ActiveEffectsBar from "./ActiveEffectsBar";
 import GameOverModal from "./GameOverModal";
 
 interface Props {
@@ -40,13 +42,13 @@ export default function GameClient({ gameId }: Props) {
   const [oppState, setOppState] = useState<PlayerState | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [finished, setFinished] = useState(false);
-  const [lastResult, setLastResult] = useState<{
-    content: BrickContent | null;
-    position: number | null;
-    broken: boolean;
+  const [lastWonCoinAt, setLastWonCoinAt] = useState<{
+    position: number;
+    ts: number;
   } | null>(null);
-  const [flashEffect, setFlashEffect] = useState<{
-    type: BrickContent;
+  const [flash, setFlash] = useState<{
+    kind: BannerKind;
+    content?: BrickContent;
     id: number;
   } | null>(null);
   const [revealedPositions, setRevealedPositions] = useState<Map<number, BrickContent>>(
@@ -54,10 +56,21 @@ export default function GameClient({ gameId }: Props) {
   );
   const finalizedRef = useRef(false);
   const coinsCreditedRef = useRef(false);
+  const bricksRef = useRef<BrickRow[]>([]);
+  const mySideRef = useRef<1 | 2 | null>(null);
 
   const mySide: 1 | 2 | null =
     game?.player1_id === clientId ? 1 : game?.player2_id === clientId ? 2 : null;
   const oppSide: 1 | 2 | null = mySide === 1 ? 2 : mySide === 2 ? 1 : null;
+  void oppSide;
+
+  // Tengo ref aggiornata
+  useEffect(() => {
+    bricksRef.current = bricks;
+  }, [bricks]);
+  useEffect(() => {
+    mySideRef.current = mySide;
+  }, [mySide]);
 
   // Carica stato iniziale + subscribe realtime
   useEffect(() => {
@@ -97,12 +110,21 @@ export default function GameClient({ gameId }: Props) {
         { event: "UPDATE", schema: "public", table: "bricks", filter: `game_id=eq.${gameId}` },
         (payload) => {
           const nb = payload.new as BrickRow;
-          setBricks((prev) => prev.map((b) => (b.position === nb.position ? nb : b)));
-          if (nb.broken && nb.revealed_content) {
-            // suono di rottura + suono contenuto
-            play("smash");
-            if (nb.revealed_content === "coin") setTimeout(() => play("coin"), 120);
+          const old = bricksRef.current.find((b) => b.position === nb.position);
+          const ms = mySideRef.current;
+          if (ms) {
+            const wasMine = ms === 1 ? !!old?.front_broken_at : !!old?.back_broken_at;
+            const isMine = ms === 1 ? !!nb.front_broken_at : !!nb.back_broken_at;
+            if (!wasMine && isMine) {
+              // Il mio lato si è appena rotto (può essere triggered da un altro update concorrente
+              // -- es. dinamite che rompe via cascade)
+              play("smash");
+              if (nb.taken_by === ms && nb.revealed_content === "coin") {
+                setTimeout(() => play("coin"), 120);
+              }
+            }
           }
+          setBricks((prev) => prev.map((b) => (b.position === nb.position ? nb : b)));
         }
       )
       .on(
@@ -122,7 +144,7 @@ export default function GameClient({ gameId }: Props) {
     };
   }, [gameId, supabase, clientId]);
 
-  // Timer 1s tick
+  // Timer 250ms tick
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(t);
@@ -131,10 +153,15 @@ export default function GameClient({ gameId }: Props) {
   const endsAt = game?.ends_at ? new Date(game.ends_at).getTime() : null;
   const secondsLeft = endsAt ? Math.max(0, Math.floor((endsAt - now) / 1000)) : 100;
 
-  // Finalizza partita quando il timer scade
+  // Finalizza partita quando il timer scade OPPURE quando il server l'ha marcata finished
   useEffect(() => {
-    if (!game || !endsAt) return;
-    if (now >= endsAt && !finalizedRef.current) {
+    if (!game) return;
+    if (game.status === "finished" && !finalizedRef.current) {
+      finalizedRef.current = true;
+      setFinished(true);
+      return;
+    }
+    if (endsAt && now >= endsAt && !finalizedRef.current) {
       finalizedRef.current = true;
       supabase.rpc("finalize_game", { p_game_id: gameId }).then(() => setFinished(true));
     }
@@ -146,36 +173,13 @@ export default function GameClient({ gameId }: Props) {
     : 0;
   const myEffects: ActiveEffect[] = myState?.active_effects ?? [];
 
-  // Verifica se l'avversario sta nascondendo il mio punteggio (fantasma nei MIEI effetti)
+  // L'avversario non vede il mio score se ho fantasma attivo sui MIEI effetti
   const oppCanSeeMyScore = !myEffects.some(
     (e) =>
       e.type === "fantasma" &&
       e.expires_at &&
       new Date(e.expires_at).getTime() > now
   );
-
-  // Pre-raggi-x: contenuti rivelati per il mio lato (locale, solo per me)
-  useEffect(() => {
-    const xray = myEffects.find((e) => e.type === "raggi-x");
-    if (!xray || !Array.isArray(xray.revealed_positions ?? (xray as unknown as { revealed?: number[] }).revealed))
-      return;
-    const positions =
-      (xray.revealed_positions as number[] | undefined) ??
-      ((xray as unknown as { revealed?: number[] }).revealed ?? []);
-    if (positions.length === 0) return;
-    const next = new Map(revealedPositions);
-    let changed = false;
-    for (const pos of positions) {
-      if (!next.has(pos) && game?.id) {
-        // Recupero contenuto via select su game.wall — solo per le posizioni ricevute,
-        // ma games_public NON espone wall. Quindi gestisco solo lato server via marcatura
-        // sui bricks: in v0 mostriamo solo "?!" colorato per quei mattoni.
-        next.set(pos, "empty");
-        changed = true;
-      }
-    }
-    if (changed) setRevealedPositions(next);
-  }, [myEffects, game?.id, revealedPositions]);
 
   // Tap su mattone
   const onTapBrick = useCallback(
@@ -190,31 +194,38 @@ export default function GameClient({ gameId }: Props) {
       if (error) return;
       const d = data as {
         ok: boolean;
-        broken?: boolean;
+        my_side_broken?: boolean;
+        outcome?: "won" | "lost" | "opp_taken" | null;
         content?: BrickContent | null;
         blast_position?: number | null;
         xray?: number[];
       };
-      if (!d?.ok) return;
-      if (d.broken && d.content) {
-        setLastResult({ content: d.content, position, broken: true });
-        // Suoni gestiti da realtime UPDATE; qui solo flash UI
-        if (d.content === "coin") {
-          /* gestito via realtime */
-        } else if (d.content !== "empty") {
-          setFlashEffect({ type: d.content, id: Date.now() });
-          // Bonus per me OR malus per me OR malus su avversario
-          const isBonus = ["pistola", "dinamite", "raggi-x", "scudo", "quadrifoglio"].includes(
-            d.content
-          );
-          setTimeout(() => play(isBonus ? "bonus" : "malus"), 80);
+      if (!d?.ok) {
+        play("crack");
+        return;
+      }
+      if (d.my_side_broken && d.content) {
+        // Coin animation locale
+        if (d.outcome === "won" && d.content === "coin") {
+          setLastWonCoinAt({ position, ts: Date.now() });
+        }
+        // Banner enfatico per i powerup
+        if (d.outcome === "won" && d.content !== "coin" && d.content !== "empty") {
+          setFlash({ kind: "found", content: d.content, id: Date.now() });
+          const isBonus = BONUS.includes(d.content);
+          setTimeout(() => play(isBonus ? "bonus" : "malus"), 60);
+        } else if (d.outcome === "lost") {
+          setFlash({ kind: "lost", content: d.content ?? undefined, id: Date.now() });
+          setTimeout(() => play("collision"), 60);
+        } else if (d.outcome === "opp_taken") {
+          // Banner sobrio "preso dall'avversario"
+          setFlash({ kind: "opp_taken", content: d.content ?? undefined, id: Date.now() });
         }
       } else {
         play("crack");
       }
-      // Raggi X: salvo localmente le 3 posizioni rivelate (solo lato mio)
+      // Raggi-X: rivelo le 3 posizioni localmente
       if (d.xray && Array.isArray(d.xray) && d.xray.length > 0) {
-        // Per la beta, marco semplicemente come "rivelato" senza esporre il contenuto
         const next = new Map(revealedPositions);
         for (const p of d.xray) next.set(p, "empty");
         setRevealedPositions(next);
@@ -247,9 +258,6 @@ export default function GameClient({ gameId }: Props) {
   const myNick = mySide === 1 ? game.player1_nick : game.player2_nick;
   const oppNick = mySide === 1 ? game.player2_nick : game.player1_nick;
 
-  // L'avversario può nascondermi il suo score (fantasma nei suoi effetti?) — gestito server-side già
-  // Qui controllo: i MIEI effetti contengono "fantasma" attivo che nasconde il MIO punteggio
-  // all'avversario. Per simmetria, l'avversario può avermi fatto fantasma → io NON vedo il suo punteggio.
   const oppEffects: ActiveEffect[] = oppState?.active_effects ?? [];
   const iCanSeeOppScore = !oppEffects.some(
     (e) =>
@@ -270,8 +278,9 @@ export default function GameClient({ gameId }: Props) {
         cooldownLeft={cooldownLeft}
         showOppScore={iCanSeeOppScore}
         oppCanSeeMyScore={oppCanSeeMyScore}
-        myEffects={myEffects}
       />
+
+      <ActiveEffectsBar effects={myEffects} now={now} />
 
       <div className="flex-1 flex items-center justify-center px-4 py-2">
         <BrickWall
@@ -284,11 +293,12 @@ export default function GameClient({ gameId }: Props) {
       </div>
 
       <AnimatePresence>
-        {flashEffect && (
+        {flash && (
           <PowerUpBanner
-            key={flashEffect.id}
-            type={flashEffect.type}
-            onDone={() => setFlashEffect(null)}
+            key={flash.id}
+            kind={flash.kind}
+            content={flash.content}
+            onDone={() => setFlash(null)}
           />
         )}
       </AnimatePresence>
@@ -306,15 +316,16 @@ export default function GameClient({ gameId }: Props) {
         )}
       </AnimatePresence>
 
-      {/* Animazione moneta verso HUD (semplice) */}
+      {/* Animazione moneta verso HUD */}
       <AnimatePresence>
-        {lastResult?.content === "coin" && lastResult.position != null && (
+        {lastWonCoinAt && (
           <motion.div
-            key={`coin-${lastResult.position}-${Date.now()}`}
+            key={`coin-${lastWonCoinAt.position}-${lastWonCoinAt.ts}`}
             initial={{ opacity: 1, scale: 1, y: 0 }}
             animate={{ opacity: 0, scale: 0.5, y: -200 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.7, ease: "easeOut" }}
+            onAnimationComplete={() => setLastWonCoinAt(null)}
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none text-5xl text-coin comic-text-stroke-lg"
           >
             +1 ¢
