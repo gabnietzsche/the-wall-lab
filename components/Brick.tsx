@@ -37,6 +37,19 @@ export default function Brick({
 }: Props) {
   // --- Stato: mio lato rotto ---
   if (mySideBroken) {
+    // Se l'avversario aveva già preso il contenuto, mostro solo un "muro bucato" anonimo:
+    // niente icona, niente badge, niente moneta — l'utente non deve sapere cosa c'era.
+    if (outcome === "opp_taken") {
+      return (
+        <motion.div
+          initial={{ scale: 1 }}
+          animate={{ scale: [1, 1.12, 1], rotate: [0, -2, 2, 0] }}
+          transition={{ duration: 0.4 }}
+          className="aspect-square rounded-md border-[3px] border-brick-edge bg-brick-edge/60 halftone-bg relative overflow-hidden"
+        />
+      );
+    }
+
     const showIcon = content && content !== "empty" && content !== "coin";
     const showCoin = content === "coin";
     const tone =
@@ -44,7 +57,7 @@ export default function Brick({
         ? "bg-comic-green/30"
         : outcome === "lost"
         ? "bg-crack/30"
-        : "bg-brick-edge/60"; // opp_taken o altro
+        : "bg-brick-edge/60";
     return (
       <motion.div
         initial={{ scale: 1 }}
@@ -52,28 +65,18 @@ export default function Brick({
         transition={{ duration: 0.45 }}
         className={`aspect-square rounded-md border-[3px] border-brick-edge ${tone} flex items-center justify-center halftone-bg relative overflow-hidden`}
       >
-        {/* Contenuto del mattone — colore in base all'esito */}
-        {showCoin && (
-          <span
-            className={`text-3xl sm:text-4xl comic-text-stroke ${
-              outcome === "won" ? "text-coin" : "opacity-40 text-coin/60"
-            }`}
-          >
+        {/* Contenuto rivelato — solo se l'ho preso io (won) o se è collisione (lost) */}
+        {outcome === "won" && showCoin && (
+          <span className="text-3xl sm:text-4xl comic-text-stroke text-coin">
             ¢
           </span>
         )}
-        {showIcon && (
-          <div
-            className={
-              outcome === "won"
-                ? "drop-shadow-md"
-                : "opacity-40 grayscale"
-            }
-          >
+        {outcome === "won" && showIcon && (
+          <div className="drop-shadow-md">
             <PowerUpIcon type={content as BrickContent} size={32} />
           </div>
         )}
-        {content === "empty" && (
+        {outcome === "won" && content === "empty" && (
           <span className="text-paper/40 text-xl">·</span>
         )}
 
@@ -81,11 +84,6 @@ export default function Brick({
         {outcome === "lost" && (
           <span className="absolute top-0.5 right-0.5 text-[10px] px-1 rounded bg-crack text-white comic-text-stroke">
             PERSO
-          </span>
-        )}
-        {outcome === "opp_taken" && (
-          <span className="absolute top-0.5 right-0.5 text-[10px] px-1 rounded bg-brick-edge text-white comic-text-stroke">
-            PRESO
           </span>
         )}
         {outcome === "won" && content === "coin" && (

@@ -217,10 +217,9 @@ export default function GameClient({ gameId }: Props) {
         } else if (d.outcome === "lost") {
           setFlash({ kind: "lost", content: d.content ?? undefined, id: Date.now() });
           setTimeout(() => play("collision"), 60);
-        } else if (d.outcome === "opp_taken") {
-          // Banner sobrio "preso dall'avversario"
-          setFlash({ kind: "opp_taken", content: d.content ?? undefined, id: Date.now() });
         }
+        // outcome === "opp_taken": nessun banner. Il muro è semplicemente "bucato",
+        // l'utente non deve sapere cosa c'era.
       } else {
         play("crack");
       }
