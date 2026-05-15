@@ -151,7 +151,24 @@ export default function GameClient({ gameId }: Props) {
   }, []);
 
   const endsAt = game?.ends_at ? new Date(game.ends_at).getTime() : null;
-  const secondsLeft = endsAt ? Math.max(0, Math.floor((endsAt - now) / 1000)) : 100;
+  const playingFromMs = game?.playing_from ? new Date(game.playing_from).getTime() : null;
+  const inCountdown = playingFromMs ? now < playingFromMs : false;
+  const countdownNum = playingFromMs
+    ? Math.max(0, Math.ceil((playingFromMs - now) / 1000))
+    : 0;
+  // Banner "GO!" mostrato per ~600ms dopo che il countdown finisce
+  const showGo =
+    playingFromMs != null &&
+    now >= playingFromMs &&
+    now < playingFromMs + 600;
+  // Il timer di gioco mostra max(0, endsAt - max(now, playingFrom)), quindi durante
+  // il countdown resta fisso a 100s.
+  const secondsLeft = endsAt
+    ? Math.max(
+        0,
+        Math.floor((endsAt - Math.max(now, playingFromMs ?? now)) / 1000)
+      )
+    : 100;
 
   // Finalizza partita quando il timer scade OPPURE quando il server l'ha marcata finished
   useEffect(() => {
@@ -185,6 +202,7 @@ export default function GameClient({ gameId }: Props) {
   const onTapBrick = useCallback(
     async (position: number) => {
       if (finished || cooldownLeft > 0) return;
+      if (inCountdown) return;
       if (!myState || myState.shots_remaining <= 0) return;
       play("hit");
       const { data, error } = await supabase.rpc("hit_brick", {
@@ -230,7 +248,7 @@ export default function GameClient({ gameId }: Props) {
         setRevealedPositions(next);
       }
     },
-    [clientId, cooldownLeft, finished, myState, revealedPositions, supabase]
+    [clientId, cooldownLeft, finished, inCountdown, myState, revealedPositions, supabase]
   );
 
   // Accredito monete a fine partita (una sola volta)
@@ -286,7 +304,12 @@ export default function GameClient({ gameId }: Props) {
           bricks={bricks}
           mySide={mySide}
           onTap={onTapBrick}
-          disabled={finished || cooldownLeft > 0 || (myState?.shots_remaining ?? 0) <= 0}
+          disabled={
+            finished ||
+            inCountdown ||
+            cooldownLeft > 0 ||
+            (myState?.shots_remaining ?? 0) <= 0
+          }
           revealed={revealedPositions}
         />
       </div>
@@ -312,6 +335,48 @@ export default function GameClient({ gameId }: Props) {
             onPlayAgain={() => router.replace("/lobby")}
             onHome={() => router.replace("/")}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Countdown pre-partita 3-2-1-GO! */}
+      <AnimatePresence>
+        {(inCountdown || showGo) && (
+          <motion.div
+            key="countdown-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm pointer-events-none"
+          >
+            <AnimatePresence mode="popLayout">
+              <motion.div
+                key={inCountdown ? `n-${countdownNum}` : "go"}
+                initial={{ scale: 0.4, opacity: 0, rotate: -8 }}
+                animate={{ scale: 1, opacity: 1, rotate: -2 }}
+                exit={{ scale: 1.8, opacity: 0, rotate: 6 }}
+                transition={{ type: "spring", stiffness: 360, damping: 18 }}
+                className="text-center"
+              >
+                {inCountdown ? (
+                  <div className="flex flex-col items-center">
+                    <div className="text-[28vw] sm:text-[180px] leading-none text-white comic-text-stroke-lg">
+                      {countdownNum}
+                    </div>
+                    <div className="mt-2 text-2xl text-white comic-text-stroke">
+                      Pronti...
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center">
+                    <div className="text-[22vw] sm:text-[140px] leading-none text-comic-green comic-text-stroke-lg">
+                      GO!
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </motion.div>
         )}
       </AnimatePresence>
 

@@ -44,6 +44,8 @@ export interface Game {
   status: "waiting" | "playing" | "finished";
   started_at: string | null;
   ends_at: string | null;
+  /** Timestamp ISO da cui il gioco accetta colpi (3s dopo started_at). */
+  playing_from: string | null;
   player1_nick: string | null;
   player2_nick: string | null;
   player1_coins: number;
