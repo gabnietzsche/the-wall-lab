@@ -6,6 +6,7 @@ import {
   getNick,
   getSupabase,
 } from "@/lib/supabase";
+import PowerupLegend from "@/components/PowerupLegend";
 
 export default function LobbyPage() {
   const router = useRouter();
@@ -86,12 +87,12 @@ export default function LobbyPage() {
   }, [waitSec]);
 
   return (
-    <main className="min-h-dvh flex flex-col items-center justify-center px-6 gap-8">
+    <main className="min-h-dvh flex flex-col items-center px-4 sm:px-6 py-6 gap-5">
       <div className="grid grid-cols-3 grid-rows-3 gap-2 animate-pop">
         {Array.from({ length: 9 }).map((_, i) => (
           <div
             key={i}
-            className="w-16 h-12 rounded-md border-[3px] border-brick-edge bg-brick"
+            className="w-14 h-10 sm:w-16 sm:h-12 rounded-md border-[3px] border-brick-edge bg-brick"
             style={{
               boxShadow: "inset -3px -3px 0 0 #C99A1F, 3px 3px 0 0 #3A2410",
               animation: `pop 0.5s ${i * 0.08}s both`,
@@ -101,11 +102,11 @@ export default function LobbyPage() {
       </div>
 
       <div className="text-center">
-        <p className="text-4xl text-white comic-text-stroke leading-tight">
+        <p className="text-3xl sm:text-4xl text-white comic-text-stroke leading-tight">
           {status}
         </p>
         {waitSec < 30 && (
-          <p className="mt-4 text-xl text-paper/90 comic-text-stroke">
+          <p className="mt-2 text-lg sm:text-xl text-paper/90 comic-text-stroke">
             {Math.max(0, 30 - waitSec)}s
           </p>
         )}
@@ -113,10 +114,18 @@ export default function LobbyPage() {
 
       <button
         onClick={() => router.replace("/")}
-        className="mt-4 px-6 py-3 text-2xl text-white bg-brick-edge comic-border-thin rounded-xl active:translate-x-1 active:translate-y-1 active:shadow-none transition"
+        className="px-6 py-3 text-2xl text-white bg-brick-edge comic-border-thin rounded-xl active:translate-x-1 active:translate-y-1 active:shadow-none transition"
       >
         ANNULLA
       </button>
+
+      {/* Legenda — utile da leggere mentre aspetti l'avversario */}
+      <section className="w-full max-w-md bg-paper rounded-2xl comic-border p-4 mt-2">
+        <h2 className="text-xl sm:text-2xl text-brick-edge mb-3 text-center font-bold">
+          Cosa c&apos;è dietro i mattoni
+        </h2>
+        <PowerupLegend compact />
+      </section>
     </main>
   );
 }

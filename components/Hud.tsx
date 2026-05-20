@@ -23,7 +23,7 @@ export default function Hud({
   showOppScore,
   oppCanSeeMyScore,
 }: Props) {
-  const cooldownPct = Math.min(100, Math.max(0, (cooldownLeft / 2000) * 100));
+  const cooldownPct = Math.min(100, Math.max(0, (cooldownLeft / 1000) * 100));
   const timeLow = secondsLeft <= 10;
 
   return (

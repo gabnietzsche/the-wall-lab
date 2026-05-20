@@ -22,6 +22,7 @@ import Hud from "./Hud";
 import PowerUpBanner, { type BannerKind } from "./PowerUpBanner";
 import ActiveEffectsBar from "./ActiveEffectsBar";
 import GameOverModal from "./GameOverModal";
+import PowerupLegend from "./PowerupLegend";
 
 interface Props {
   gameId: string;
@@ -54,6 +55,7 @@ export default function GameClient({ gameId }: Props) {
   const [revealedPositions, setRevealedPositions] = useState<Map<number, BrickContent>>(
     new Map()
   );
+  const [showLegend, setShowLegend] = useState(false);
   const finalizedRef = useRef(false);
   const coinsCreditedRef = useRef(false);
   const bricksRef = useRef<BrickRow[]>([]);
@@ -184,9 +186,9 @@ export default function GameClient({ gameId }: Props) {
     }
   }, [now, endsAt, game, gameId, supabase]);
 
-  // Cooldown effettivo
+  // Cooldown effettivo: 1s tra colpi (server tollera 0.9s)
   const cooldownLeft = myState?.last_hit_at
-    ? Math.max(0, new Date(myState.last_hit_at).getTime() + 2000 - now)
+    ? Math.max(0, new Date(myState.last_hit_at).getTime() + 1000 - now)
     : 0;
   const myEffects: ActiveEffect[] = myState?.active_effects ?? [];
 
@@ -393,6 +395,51 @@ export default function GameClient({ gameId }: Props) {
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none text-5xl text-coin comic-text-stroke-lg"
           >
             +1 ¢
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Pulsante "?" per aprire la legenda */}
+      <button
+        onClick={() => setShowLegend(true)}
+        aria-label="Legenda bonus e malus"
+        className="fixed bottom-4 right-4 z-30 w-12 h-12 rounded-full bg-comic-purple text-white text-2xl font-extrabold comic-border-thin shadow-lg active:translate-y-0.5 transition"
+      >
+        ?
+      </button>
+
+      {/* Modal Legenda */}
+      <AnimatePresence>
+        {showLegend && (
+          <motion.div
+            key="legend-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => setShowLegend(false)}
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-3 py-4"
+          >
+            <motion.div
+              initial={{ scale: 0.85, y: 30 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.85, y: 30 }}
+              transition={{ type: "spring", stiffness: 360, damping: 26 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md max-h-[85vh] overflow-y-auto bg-paper rounded-2xl comic-border p-4 pb-6"
+            >
+              <div className="flex items-center justify-between mb-3 sticky top-0 bg-paper pt-1 pb-2 -mt-1">
+                <h2 className="text-2xl text-brick-edge font-bold">Legenda</h2>
+                <button
+                  onClick={() => setShowLegend(false)}
+                  aria-label="Chiudi"
+                  className="w-9 h-9 rounded-full bg-brick-edge text-white text-xl comic-border-thin active:translate-y-0.5"
+                >
+                  ✕
+                </button>
+              </div>
+              <PowerupLegend />
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
