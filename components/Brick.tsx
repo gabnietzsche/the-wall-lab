@@ -126,13 +126,6 @@ export default function Brick({
         </svg>
       )}
 
-      {/* Indicatore della soglia per i mattoni "duri" (3 colpi) */}
-      {hitsNeeded === 3 && totalHits === 0 && (
-        <span className="absolute top-0.5 right-0.5 text-[9px] px-1 rounded bg-brick-edge text-white comic-text-stroke opacity-70">
-          3
-        </span>
-      )}
-
       {revealed && (
         <span className="absolute inset-0 flex items-center justify-center text-2xl text-comic-purple">
           ?
