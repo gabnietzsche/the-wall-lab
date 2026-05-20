@@ -9,9 +9,9 @@ const BONUS_ITEMS: BrickContent[] = [
   "raggi-x",
   "scudo",
   "quadrifoglio",
+  "x2-coins",
 ];
 const MALUS_ITEMS: BrickContent[] = [
-  "scalpello",
   "gabbia",
   "doppia-gabbia",
   "fantasma",

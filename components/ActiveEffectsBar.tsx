@@ -92,16 +92,6 @@ function buildItem(e: ActiveEffect, now: number): Item[] {
     case "raggi-x":
       // L'effetto è istantaneo (3 rivelati). Skip dal banner persistente.
       return [];
-    case "scalpello":
-      if ((e.shots_left ?? 0) <= 0) return [];
-      return [
-        {
-          type: "scalpello",
-          label: "Scalpello",
-          detail: `Servono 3 hit — ${e.shots_left} colpi`,
-          isBonus: false,
-        },
-      ];
     case "x2-coins": {
       const exp = e.expires_at ? new Date(e.expires_at).getTime() : 0;
       const remaining = Math.max(0, Math.ceil((exp - now) / 1000));

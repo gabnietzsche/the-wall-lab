@@ -117,14 +117,11 @@ export default function GameClient({ gameId }: Props) {
           const nb = payload.new as BrickRow;
           const old = bricksRef.current.find((b) => b.position === nb.position);
           const ms = mySideRef.current;
-          if (ms) {
-            const wasMine = ms === 1 ? !!old?.front_broken_at : !!old?.back_broken_at;
-            const isMine = ms === 1 ? !!nb.front_broken_at : !!nb.back_broken_at;
-            if (!wasMine && isMine) {
-              play("smash");
-              if (nb.taken_by === ms && nb.revealed_content === "coin") {
-                setTimeout(() => play("coin"), 120);
-              }
+          // Vista condivisa: smash quando il mattone passa da non-rotto a rotto, per entrambi
+          if (!old?.broken && nb.broken) {
+            play("smash");
+            if (ms && nb.taken_by === ms && nb.revealed_content === "coin") {
+              setTimeout(() => play("coin"), 120);
             }
           }
           setBricks((prev) => prev.map((b) => (b.position === nb.position ? nb : b)));
@@ -277,8 +274,8 @@ export default function GameClient({ gameId }: Props) {
       if (error) return;
       const d = data as {
         ok: boolean;
-        my_side_broken?: boolean;
-        outcome?: "won" | "lost" | "opp_taken" | null;
+        just_broken?: boolean;
+        outcome?: "won" | null;
         content?: BrickContent | null;
         blast_position?: number | null;
         xray?: number[];
@@ -291,7 +288,9 @@ export default function GameClient({ gameId }: Props) {
         play("crack");
         return;
       }
-      if (d.my_side_broken && d.content) {
+      // Vista condivisa: just_broken=true significa che HO ROTTO IO il mattone
+      // (chi tocca per ultimo prende il contenuto). Banner + animazione locale.
+      if (d.just_broken && d.content) {
         if (d.outcome === "won" && d.content === "coin") {
           setLastWonCoinAt({ position, ts: Date.now() });
         }
@@ -299,11 +298,9 @@ export default function GameClient({ gameId }: Props) {
           setFlash({ kind: "found", content: d.content, id: Date.now() });
           const isBonus = BONUS.includes(d.content);
           setTimeout(() => play(isBonus ? "bonus" : "malus"), 60);
-        } else if (d.outcome === "lost") {
-          setFlash({ kind: "lost", content: d.content ?? undefined, id: Date.now() });
-          setTimeout(() => play("collision"), 60);
         }
       } else {
+        // Solo crepa (non ho ancora rotto il mattone)
         play("crack");
       }
       // Combo streak completata: bonus moneta + animazione
@@ -410,7 +407,6 @@ export default function GameClient({ gameId }: Props) {
             (myState?.shots_remaining ?? 0) <= 0
           }
           revealed={revealedPositions}
-          opponentSkinId={oppSkin}
           pulseTrigger={heartbeatTrigger}
         />
       </div>
