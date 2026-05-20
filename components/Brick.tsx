@@ -92,12 +92,16 @@ export default function Brick({
       }}
       aria-label="Mattone"
     >
-      {/* Crepe progressive in base ai colpi totali (vista condivisa) */}
+      {/* Crepe progressive in base ai colpi totali (vista condivisa).
+          Step 1: zigzag verticale.
+          Step 2: raggiera nera (8 linee che si irradiano dal centro).
+          Step 3: raggiera più densa con linee diagonali addizionali. */}
       {totalHits >= 1 && (
         <svg
           viewBox="0 0 40 40"
           className="absolute inset-0 w-full h-full pointer-events-none"
         >
+          {/* Crepa primaria (zigzag) */}
           <path
             d="M 20 4 L 18 14 L 24 20 L 16 26 L 22 36"
             stroke="#3A2410"
@@ -105,23 +109,44 @@ export default function Brick({
             fill="none"
             strokeLinecap="round"
           />
+
+          {/* Raggiera step 2 — 8 linee dal centro verso fuori */}
           {totalHits >= 2 && (
-            <path
-              d="M 6 18 L 14 20 L 20 16 M 26 22 L 34 18"
-              stroke="#E63946"
-              strokeWidth="2"
-              fill="none"
-              strokeLinecap="round"
-            />
-          )}
-          {totalHits >= 3 && (
-            <path
-              d="M 4 8 L 16 12 M 28 30 L 36 34 M 8 34 L 14 28"
+            <g
               stroke="#3A2410"
-              strokeWidth="1.8"
-              fill="none"
+              strokeWidth="2"
               strokeLinecap="round"
-            />
+              fill="none"
+            >
+              <line x1="20" y1="20" x2="4"  y2="4" />
+              <line x1="20" y1="20" x2="36" y2="4" />
+              <line x1="20" y1="20" x2="4"  y2="36" />
+              <line x1="20" y1="20" x2="36" y2="36" />
+              <line x1="20" y1="20" x2="2"  y2="20" strokeWidth="1.6" />
+              <line x1="20" y1="20" x2="38" y2="20" strokeWidth="1.6" />
+              <line x1="20" y1="20" x2="20" y2="2"  strokeWidth="1.6" />
+              <line x1="20" y1="20" x2="20" y2="38" strokeWidth="1.6" />
+            </g>
+          )}
+
+          {/* Step 3 — raggiera secondaria più sottile per riempire i gap */}
+          {totalHits >= 3 && (
+            <g
+              stroke="#3A2410"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              fill="none"
+              opacity="0.85"
+            >
+              <line x1="20" y1="20" x2="10" y2="2" />
+              <line x1="20" y1="20" x2="30" y2="2" />
+              <line x1="20" y1="20" x2="2"  y2="10" />
+              <line x1="20" y1="20" x2="38" y2="10" />
+              <line x1="20" y1="20" x2="2"  y2="30" />
+              <line x1="20" y1="20" x2="38" y2="30" />
+              <line x1="20" y1="20" x2="10" y2="38" />
+              <line x1="20" y1="20" x2="30" y2="38" />
+            </g>
           )}
         </svg>
       )}

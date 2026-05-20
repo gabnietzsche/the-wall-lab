@@ -9,6 +9,8 @@ interface Props {
   oppNick: string;
   mySkin?: string;
   oppSkin?: string;
+  /** Lato del giocatore corrente: 1 = P1 (rosa), 2 = P2 (azzurro). */
+  mySide: 1 | 2;
   onPlayAgain: () => void;
   onHome: () => void;
 }
@@ -20,6 +22,7 @@ export default function GameOverModal({
   oppNick,
   mySkin = "ladro",
   oppSkin = "ladro",
+  mySide,
   onPlayAgain,
   onHome,
 }: Props) {
@@ -45,8 +48,13 @@ export default function GameOverModal({
         <h2 className={`text-6xl comic-text-stroke-lg ${titleColor}`}>{title}</h2>
 
         <div className="mt-6 grid grid-cols-2 gap-3">
-          <ScoreCol nick={myNick} coins={myCoins} skin={mySkin} mine />
-          <ScoreCol nick={oppNick} coins={oppCoins} skin={oppSkin} mine={false} />
+          <ScoreCol nick={myNick} coins={myCoins} skin={mySkin} playerSide={mySide} />
+          <ScoreCol
+            nick={oppNick}
+            coins={oppCoins}
+            skin={oppSkin}
+            playerSide={mySide === 1 ? 2 : 1}
+          />
         </div>
 
         <div className="mt-6 px-4 py-3 bg-coin/30 comic-border-thin rounded-xl">
@@ -77,17 +85,18 @@ function ScoreCol({
   nick,
   coins,
   skin,
-  mine,
+  playerSide,
 }: {
   nick: string;
   coins: number;
   skin: string;
-  mine: boolean;
+  /** P1 = sempre rosa, P2 = sempre azzurro */
+  playerSide: 1 | 2;
 }) {
   return (
     <div
       className={`px-2 py-2 rounded-xl comic-border-thin flex flex-col items-center gap-1 ${
-        mine ? "bg-comic-pink" : "bg-sky"
+        playerSide === 1 ? "bg-comic-pink" : "bg-sky"
       }`}
     >
       <div className="bg-paper/95 rounded-lg p-1 comic-border-thin">

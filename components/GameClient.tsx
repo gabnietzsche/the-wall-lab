@@ -66,6 +66,11 @@ export default function GameClient({ gameId }: Props) {
   const mySideRef = useRef<1 | 2 | null>(null);
   const lastHeartbeatBucketRef = useRef<number>(-1);
   const lastTickBucketRef = useRef<number>(-1);
+  /** Offset stimato fra il clock del server e Date.now() del browser:
+   *  serverTime ≈ Date.now() + clockOffsetRef.current.
+   *  Garantisce che il countdown 3-2-1 sia sincronizzato fra i due giocatori
+   *  anche se i loro device hanno orologi sfasati. */
+  const clockOffsetRef = useRef<number>(0);
 
   const mySide: 1 | 2 | null =
     game?.player1_id === clientId ? 1 : game?.player2_id === clientId ? 2 : null;
@@ -83,6 +88,20 @@ export default function GameClient({ gameId }: Props) {
     myNickRef.current = getNick();
     unlockAudio();
 
+    async function syncClock() {
+      // Stimo l'offset tra clock locale e server con compensazione RTT.
+      // serverNow = (Date.now() + clockOffsetRef.current)
+      const start = Date.now();
+      const { data, error } = await supabase.rpc("get_server_now");
+      if (error || data == null) return;
+      const rtt = Date.now() - start;
+      // Quando il server ha eseguito la query era ~ rtt/2 fa (one-way ~ rtt/2);
+      // quindi al momento attuale il clock del server è a serverNow + rtt/2.
+      const serverNowEstimated = Number(data) + rtt / 2;
+      clockOffsetRef.current = serverNowEstimated - Date.now();
+      if (!cancelled) setNow(Date.now() + clockOffsetRef.current);
+    }
+
     async function loadAll() {
       const [g, b, ps] = await Promise.all([
         supabase.from("games_public").select("*").eq("id", gameId).single(),
@@ -99,6 +118,8 @@ export default function GameClient({ gameId }: Props) {
         if (opp) setOppState(opp);
       }
     }
+    // Lancio sync clock subito (in parallelo a loadAll) per minimizzare il drift
+    syncClock();
     loadAll();
 
     const channel = supabase
@@ -144,9 +165,12 @@ export default function GameClient({ gameId }: Props) {
     };
   }, [gameId, supabase, clientId]);
 
-  // Timer 250ms tick
+  // Timer 250ms tick (con clock offset corretto verso il server)
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 250);
+    const t = setInterval(
+      () => setNow(Date.now() + clockOffsetRef.current),
+      250
+    );
     return () => clearInterval(t);
   }, []);
 
@@ -366,6 +390,7 @@ export default function GameClient({ gameId }: Props) {
         oppCanSeeMyScore={oppCanSeeMyScore}
         mySkin={mySkin}
         oppSkin={oppSkin}
+        mySide={mySide}
         streak={myState?.streak ?? 0}
         inOvertime={inOvertime}
       />
@@ -437,6 +462,7 @@ export default function GameClient({ gameId }: Props) {
             oppNick={oppNick ?? "?"}
             mySkin={mySkin ?? "ladro"}
             oppSkin={oppSkin ?? "ladro"}
+            mySide={mySide}
             onPlayAgain={() => router.replace("/lobby")}
             onHome={() => router.replace("/")}
           />

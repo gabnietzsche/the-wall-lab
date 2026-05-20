@@ -14,6 +14,8 @@ interface Props {
   oppCanSeeMyScore: boolean;
   mySkin?: string | null;
   oppSkin?: string | null;
+  /** Lato del giocatore corrente: 1 = P1 (rosa), 2 = P2 (azzurro). */
+  mySide: 1 | 2;
   streak: number;
   inOvertime?: boolean;
 }
@@ -30,6 +32,7 @@ export default function Hud({
   oppCanSeeMyScore,
   mySkin = "ladro",
   oppSkin = "ladro",
+  mySide,
   streak,
   inOvertime = false,
 }: Props) {
@@ -60,7 +63,7 @@ export default function Hud({
         <ScoreBadge
           nick={myNick}
           coins={myCoins}
-          mine
+          playerSide={mySide}
           hidden={!oppCanSeeMyScore}
           skin={mySkin ?? "ladro"}
         />
@@ -75,7 +78,7 @@ export default function Hud({
         <ScoreBadge
           nick={oppNick}
           coins={oppCoins}
-          mine={false}
+          playerSide={mySide === 1 ? 2 : 1}
           hidden={!showOppScore}
           skin={oppSkin ?? "ladro"}
         />
@@ -116,20 +119,21 @@ export default function Hud({
 function ScoreBadge({
   nick,
   coins,
-  mine,
+  playerSide,
   hidden,
   skin,
 }: {
   nick: string;
   coins: number;
-  mine: boolean;
+  /** P1 = sempre rosa, P2 = sempre azzurro (uguale su entrambi gli schermi). */
+  playerSide: 1 | 2;
   hidden: boolean;
   skin: string;
 }) {
   return (
     <div
       className={`flex-1 px-2 py-1.5 rounded-xl comic-border flex items-center gap-2 ${
-        mine ? "bg-comic-pink" : "bg-sky"
+        playerSide === 1 ? "bg-comic-pink" : "bg-sky"
       }`}
     >
       <div className="shrink-0 bg-paper/95 rounded-lg p-0.5 comic-border-thin">
