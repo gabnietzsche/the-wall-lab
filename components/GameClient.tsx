@@ -24,6 +24,7 @@ import ActiveEffectsBar from "./ActiveEffectsBar";
 import GameOverModal from "./GameOverModal";
 import PowerupLegend from "./PowerupLegend";
 import SpicyOverlay from "./SpicyOverlay";
+import HeartbeatFlash from "./HeartbeatFlash";
 
 interface Props {
   gameId: string;
@@ -58,6 +59,7 @@ export default function GameClient({ gameId }: Props) {
     new Map()
   );
   const [showLegend, setShowLegend] = useState(false);
+  const [heartbeatTrigger, setHeartbeatTrigger] = useState<number | null>(null);
   const finalizedRef = useRef(false);
   const coinsCreditedRef = useRef(false);
   const bricksRef = useRef<BrickRow[]>([]);
@@ -227,6 +229,10 @@ export default function GameClient({ gameId }: Props) {
       if (bucket !== lastHeartbeatBucketRef.current) {
         lastHeartbeatBucketRef.current = bucket;
         play("heartbeat");
+        // Flash bomba: solo negli ultimi 10s o in overtime (frequenza ~2 beat/sec)
+        if (inOvertime || secondsLeft <= 10) {
+          setHeartbeatTrigger(Date.now());
+        }
       }
     } else {
       lastHeartbeatBucketRef.current = -1;
@@ -405,11 +411,15 @@ export default function GameClient({ gameId }: Props) {
           }
           revealed={revealedPositions}
           opponentSkinId={oppSkin}
+          pulseTrigger={heartbeatTrigger}
         />
       </div>
 
       {/* SpicyOverlay: vignetta rossa pulsante negli ultimi 20s + overtime */}
       <SpicyOverlay secondsLeft={secondsLeft} inOvertime={inOvertime} />
+
+      {/* HeartbeatFlash: lampi rossi full-screen sincronizzati col battito (≤10s + overtime) */}
+      <HeartbeatFlash trigger={heartbeatTrigger} />
 
       <AnimatePresence>
         {flash && (

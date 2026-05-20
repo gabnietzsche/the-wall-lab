@@ -1,6 +1,6 @@
 "use client";
-import { useMemo } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useMemo } from "react";
+import { motion, useAnimationControls } from "framer-motion";
 import type { BrickRow, BrickContent } from "@/lib/types";
 import Brick, { type Outcome } from "./Brick";
 import PlayerSkin from "./PlayerSkin";
@@ -13,6 +13,11 @@ interface Props {
   revealed: Map<number, BrickContent>;
   /** Skin dell'avversario, mostrata come sagoma in trasparenza dietro al muro. */
   opponentSkinId?: string | null;
+  /**
+   * Timestamp del battito cardiaco corrente. Cambia → il muro pulsa (scale 1→1.025→1)
+   * per dare la sensazione che "tutto pulsi a tempo".
+   */
+  pulseTrigger?: number | null;
 }
 
 function computeOutcome(
@@ -33,6 +38,7 @@ export default function BrickWall({
   disabled,
   revealed,
   opponentSkinId,
+  pulseTrigger,
 }: Props) {
   const byPos = useMemo(() => {
     const m = new Map<number, BrickRow>();
@@ -40,11 +46,29 @@ export default function BrickWall({
     return m;
   }, [bricks]);
 
+  // Pulse sincrono col battito: scala il muro per ~180ms ad ogni beat
+  const controls = useAnimationControls();
+  // Animazione di entrata one-shot
+  useEffect(() => {
+    controls.start({
+      scale: 1,
+      opacity: 1,
+      transition: { duration: 0.4, ease: "backOut" },
+    });
+  }, [controls]);
+  // Pulse ad ogni beat
+  useEffect(() => {
+    if (pulseTrigger == null) return;
+    controls.start({
+      scale: [1, 1.025, 1],
+      transition: { duration: 0.18, ease: "easeOut", times: [0, 0.35, 1] },
+    });
+  }, [pulseTrigger, controls]);
+
   return (
     <motion.div
       initial={{ scale: 0.9, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ duration: 0.4, ease: "backOut" }}
+      animate={controls}
       className="relative w-full max-w-md aspect-square p-3 rounded-2xl bg-brick-edge/30 comic-border halftone-bg overflow-hidden"
     >
       {/* Sagoma dell'avversario dietro al muro */}
