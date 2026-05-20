@@ -8,6 +8,9 @@ type Key =
   | "bonus"
   | "malus"
   | "collision"
+  | "heartbeat"
+  | "tick"
+  | "combo"
   | "win"
   | "lose";
 
@@ -150,6 +153,26 @@ export function play(key: Key) {
         tone(440, 0.06, "square", 0.3, 0.002, 0.05, 220);
         setTimeout(() => tone(330, 0.18, "sawtooth", 0.32, 0.002, 0.16, 110), 70);
         noise(0.08, 0.18, 800);
+        break;
+      case "heartbeat":
+        // Battito cardiaco: due thump bassi ravvicinati (lub-dub)
+        tone(70, 0.08, "sine", 0.5, 0.002, 0.07, 50);
+        setTimeout(() => tone(60, 0.1, "sine", 0.42, 0.002, 0.09, 40), 110);
+        break;
+      case "tick":
+        // Tick stridulo da timer
+        tone(2400, 0.03, "square", 0.22, 0.001, 0.025);
+        noise(0.02, 0.12, 5000);
+        break;
+      case "combo":
+        // Combo: trionfo veloce + sparkle alto
+        tone(659, 0.06, "square", 0.32, 0.002, 0.05);
+        setTimeout(() => tone(880, 0.06, "square", 0.32, 0.002, 0.05), 50);
+        setTimeout(() => tone(1175, 0.06, "square", 0.32, 0.002, 0.05), 100);
+        setTimeout(() => {
+          tone(1568, 0.18, "triangle", 0.36, 0.002, 0.15);
+          tone(3135, 0.18, "square", 0.1, 0.002, 0.15);
+        }, 150);
         break;
       case "win":
         tone(523, 0.1, "square", 0.3, 0.002, 0.08);

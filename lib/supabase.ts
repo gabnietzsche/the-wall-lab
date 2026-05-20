@@ -22,6 +22,8 @@ export function getSupabase(): SupabaseClient {
 const CLIENT_ID_KEY = "the-wall:client-id";
 const NICK_KEY = "the-wall:nick";
 const COINS_KEY = "the-wall:coins";
+const SKIN_KEY = "the-wall:skin";
+const DEFAULT_SKIN = "ladro";
 
 export function getClientId(): string {
   if (typeof window === "undefined") return "";
@@ -50,4 +52,14 @@ export function getTotalCoins(): number {
 export function addCoins(n: number) {
   const cur = getTotalCoins();
   localStorage.setItem(COINS_KEY, String(cur + n));
+}
+
+export function getSkin(): string {
+  if (typeof window === "undefined") return DEFAULT_SKIN;
+  return localStorage.getItem(SKIN_KEY) || DEFAULT_SKIN;
+}
+
+export function setSkin(skin: string) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(SKIN_KEY, skin.slice(0, 20));
 }

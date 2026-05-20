@@ -102,6 +102,19 @@ function buildItem(e: ActiveEffect, now: number): Item[] {
           isBonus: false,
         },
       ];
+    case "x2-coins": {
+      const exp = e.expires_at ? new Date(e.expires_at).getTime() : 0;
+      const remaining = Math.max(0, Math.ceil((exp - now) / 1000));
+      if (remaining <= 0) return [];
+      return [
+        {
+          type: "x2-coins",
+          label: "Moltiplicatore x2",
+          detail: `Ogni moneta vale doppio — ${remaining}s`,
+          isBonus: true,
+        },
+      ];
+    }
     case "fantasma": {
       const exp = e.expires_at ? new Date(e.expires_at).getTime() : 0;
       const remaining = Math.max(0, Math.ceil((exp - now) / 1000));

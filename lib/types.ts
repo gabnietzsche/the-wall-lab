@@ -6,6 +6,7 @@ export type BrickContent =
   | "raggi-x"
   | "scudo"
   | "quadrifoglio"
+  | "x2-coins"
   | "scalpello"
   | "gabbia"
   | "doppia-gabbia"
@@ -17,6 +18,7 @@ export const POWERUP_POOL: BrickContent[] = [
   "raggi-x",
   "scudo",
   "quadrifoglio",
+  "x2-coins",
   "scalpello",
   "gabbia",
   "doppia-gabbia",
@@ -29,6 +31,7 @@ export const BONUS: BrickContent[] = [
   "raggi-x",
   "scudo",
   "quadrifoglio",
+  "x2-coins",
 ];
 export const MALUS: BrickContent[] = [
   "scalpello",
@@ -39,6 +42,24 @@ export const MALUS: BrickContent[] = [
 
 export type PlayerSide = 1 | 2;
 
+/** Skin del giocatore: id stabile usato in DB e nei componenti. */
+export type SkinId =
+  | "ladro"
+  | "operaio"
+  | "boss"
+  | "pirata"
+  | "ninja"
+  | "clown";
+
+export const SKIN_IDS: SkinId[] = [
+  "ladro",
+  "operaio",
+  "boss",
+  "pirata",
+  "ninja",
+  "clown",
+];
+
 export interface Game {
   id: string;
   status: "waiting" | "playing" | "finished";
@@ -46,8 +67,12 @@ export interface Game {
   ends_at: string | null;
   /** Timestamp ISO da cui il gioco accetta colpi (3s dopo started_at). */
   playing_from: string | null;
+  /** Timestamp ISO della scadenza overtime (sudden death); null se non in overtime. */
+  overtime_until: string | null;
   player1_nick: string | null;
   player2_nick: string | null;
+  player1_skin: string | null;
+  player2_skin: string | null;
   player1_coins: number;
   player2_coins: number;
   player1_id: string | null;
@@ -85,6 +110,8 @@ export interface PlayerState {
   last_hit_at: string | null;
   shots_remaining: number;
   active_effects: ActiveEffect[];
+  /** Contatore combo: 0..2; al raggiungimento di 3 viene resettato e dà bonus moneta */
+  streak: number;
 }
 
 export interface LobbyRow {
@@ -92,6 +119,7 @@ export interface LobbyRow {
   nick: string;
   client_id: string;
   joined_at: string;
+  skin: string | null;
 }
 
 export const POWERUP_LABELS: Record<BrickContent, string> = {
@@ -102,6 +130,7 @@ export const POWERUP_LABELS: Record<BrickContent, string> = {
   "raggi-x": "Raggi X",
   scudo: "Scudo",
   quadrifoglio: "Quadrifoglio",
+  "x2-coins": "Moltiplicatore x2",
   scalpello: "Scalpello",
   gabbia: "Gabbia",
   "doppia-gabbia": "Doppia Gabbia",
@@ -116,6 +145,7 @@ export const POWERUP_DESCRIPTIONS: Record<BrickContent, string> = {
   "raggi-x": "Rivela il contenuto di 3 mattoni",
   scudo: "Blocca il prossimo malus",
   quadrifoglio: "Blocca l'avversario per 2s",
+  "x2-coins": "Per 6 secondi ogni moneta vale doppio",
   scalpello: "Per 2 colpi servono 3 hit",
   gabbia: "Bloccato per 2s",
   "doppia-gabbia": "Bloccato per 4s",

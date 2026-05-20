@@ -225,6 +225,25 @@ export default function PowerUpIcon({ type, size = 32, className = "" }: Props) 
         </svg>
       );
 
+    case "x2-coins":
+      return (
+        <svg width={w} height={h} viewBox="0 0 40 40" className={className}>
+          {/* moneta retro */}
+          <circle cx="14" cy="22" r="11" fill="#C99A1F" stroke={stroke} strokeWidth={sw} />
+          {/* moneta fronte */}
+          <circle cx="22" cy="18" r="11" fill="#F5B400" stroke={stroke} strokeWidth={sw} />
+          <circle cx="22" cy="18" r="7" fill="#FFD700" stroke={stroke} strokeWidth="1.2" />
+          <text x="22" y="22" textAnchor="middle" fontSize="10" fontWeight="900" fill={stroke}>
+            ¢
+          </text>
+          {/* badge ×2 */}
+          <circle cx="32" cy="10" r="7" fill="#E63946" stroke={stroke} strokeWidth={sw} />
+          <text x="32" y="13" textAnchor="middle" fontSize="8" fontWeight="900" fill="#fff">
+            x2
+          </text>
+        </svg>
+      );
+
     case "empty":
     default:
       return (

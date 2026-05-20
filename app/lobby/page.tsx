@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import {
   getClientId,
   getNick,
+  getSkin,
   getSupabase,
 } from "@/lib/supabase";
 import PowerupLegend from "@/components/PowerupLegend";
@@ -26,11 +27,13 @@ export default function LobbyPage() {
     let secTimer: ReturnType<typeof setInterval> | null = null;
     let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
 
+    const skin = getSkin();
     async function tryMatch() {
       if (cancelled.current) return;
       const { data, error } = await supabase.rpc("request_match", {
         p_client_id: clientId,
         p_nick: nick,
+        p_skin: skin,
       });
       if (error) {
         setStatus("Errore di connessione. Riprovo...");

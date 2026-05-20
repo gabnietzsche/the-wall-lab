@@ -45,7 +45,7 @@ export default function Brick({
           initial={{ scale: 1 }}
           animate={{ scale: [1, 1.12, 1], rotate: [0, -2, 2, 0] }}
           transition={{ duration: 0.4 }}
-          className="aspect-square rounded-md border-[3px] border-brick-edge bg-brick-edge/60 halftone-bg relative overflow-hidden"
+          className="aspect-square rounded-md border-[3px] border-brick-edge/50 bg-brick-edge/20 halftone-bg relative overflow-hidden"
         />
       );
     }

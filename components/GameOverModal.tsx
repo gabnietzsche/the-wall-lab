@@ -1,11 +1,14 @@
 "use client";
 import { motion } from "framer-motion";
+import PlayerSkin from "./PlayerSkin";
 
 interface Props {
   myCoins: number;
   oppCoins: number;
   myNick: string;
   oppNick: string;
+  mySkin?: string;
+  oppSkin?: string;
   onPlayAgain: () => void;
   onHome: () => void;
 }
@@ -15,6 +18,8 @@ export default function GameOverModal({
   oppCoins,
   myNick,
   oppNick,
+  mySkin = "ladro",
+  oppSkin = "ladro",
   onPlayAgain,
   onHome,
 }: Props) {
@@ -40,15 +45,13 @@ export default function GameOverModal({
         <h2 className={`text-6xl comic-text-stroke-lg ${titleColor}`}>{title}</h2>
 
         <div className="mt-6 grid grid-cols-2 gap-3">
-          <ScoreCol nick={myNick} coins={myCoins} mine />
-          <ScoreCol nick={oppNick} coins={oppCoins} mine={false} />
+          <ScoreCol nick={myNick} coins={myCoins} skin={mySkin} mine />
+          <ScoreCol nick={oppNick} coins={oppCoins} skin={oppSkin} mine={false} />
         </div>
 
         <div className="mt-6 px-4 py-3 bg-coin/30 comic-border-thin rounded-xl">
           <div className="text-brick-edge text-lg">Hai guadagnato</div>
-          <div className="text-4xl text-coin comic-text-stroke">
-            +{myCoins} ¢
-          </div>
+          <div className="text-4xl text-coin comic-text-stroke">+{myCoins} ¢</div>
         </div>
 
         <div className="mt-6 flex flex-col gap-3">
@@ -73,20 +76,25 @@ export default function GameOverModal({
 function ScoreCol({
   nick,
   coins,
+  skin,
   mine,
 }: {
   nick: string;
   coins: number;
+  skin: string;
   mine: boolean;
 }) {
   return (
     <div
-      className={`px-3 py-3 rounded-xl comic-border-thin ${
+      className={`px-2 py-2 rounded-xl comic-border-thin flex flex-col items-center gap-1 ${
         mine ? "bg-comic-pink" : "bg-sky"
       }`}
     >
-      <div className="text-white text-sm truncate comic-text-stroke">{nick}</div>
-      <div className="text-3xl text-white comic-text-stroke">¢{coins}</div>
+      <div className="bg-paper/95 rounded-lg p-1 comic-border-thin">
+        <PlayerSkin id={skin} size={44} />
+      </div>
+      <div className="text-white text-xs truncate comic-text-stroke w-full">{nick}</div>
+      <div className="text-2xl text-white comic-text-stroke">¢{coins}</div>
     </div>
   );
 }

@@ -23,6 +23,7 @@ import PowerUpBanner, { type BannerKind } from "./PowerUpBanner";
 import ActiveEffectsBar from "./ActiveEffectsBar";
 import GameOverModal from "./GameOverModal";
 import PowerupLegend from "./PowerupLegend";
+import SpicyOverlay from "./SpicyOverlay";
 
 interface Props {
   gameId: string;
@@ -47,6 +48,7 @@ export default function GameClient({ gameId }: Props) {
     position: number;
     ts: number;
   } | null>(null);
+  const [comboAt, setComboAt] = useState<number | null>(null);
   const [flash, setFlash] = useState<{
     kind: BannerKind;
     content?: BrickContent;
@@ -60,13 +62,12 @@ export default function GameClient({ gameId }: Props) {
   const coinsCreditedRef = useRef(false);
   const bricksRef = useRef<BrickRow[]>([]);
   const mySideRef = useRef<1 | 2 | null>(null);
+  const lastHeartbeatBucketRef = useRef<number>(-1);
+  const lastTickBucketRef = useRef<number>(-1);
 
   const mySide: 1 | 2 | null =
     game?.player1_id === clientId ? 1 : game?.player2_id === clientId ? 2 : null;
-  const oppSide: 1 | 2 | null = mySide === 1 ? 2 : mySide === 2 ? 1 : null;
-  void oppSide;
 
-  // Tengo ref aggiornata
   useEffect(() => {
     bricksRef.current = bricks;
   }, [bricks]);
@@ -118,8 +119,6 @@ export default function GameClient({ gameId }: Props) {
             const wasMine = ms === 1 ? !!old?.front_broken_at : !!old?.back_broken_at;
             const isMine = ms === 1 ? !!nb.front_broken_at : !!nb.back_broken_at;
             if (!wasMine && isMine) {
-              // Il mio lato si è appena rotto (può essere triggered da un altro update concorrente
-              // -- es. dinamite che rompe via cascade)
               play("smash");
               if (nb.taken_by === ms && nb.revealed_content === "coin") {
                 setTimeout(() => play("coin"), 120);
@@ -154,25 +153,42 @@ export default function GameClient({ gameId }: Props) {
 
   const endsAt = game?.ends_at ? new Date(game.ends_at).getTime() : null;
   const playingFromMs = game?.playing_from ? new Date(game.playing_from).getTime() : null;
+  const overtimeUntilMs = game?.overtime_until
+    ? new Date(game.overtime_until).getTime()
+    : null;
+
   const inCountdown = playingFromMs ? now < playingFromMs : false;
   const countdownNum = playingFromMs
     ? Math.max(0, Math.ceil((playingFromMs - now) / 1000))
     : 0;
-  // Banner "GO!" mostrato per ~600ms dopo che il countdown finisce
   const showGo =
-    playingFromMs != null &&
-    now >= playingFromMs &&
-    now < playingFromMs + 600;
-  // Il timer di gioco mostra max(0, endsAt - max(now, playingFrom)), quindi durante
-  // il countdown resta fisso a 100s.
-  const secondsLeft = endsAt
-    ? Math.max(
+    playingFromMs != null && now >= playingFromMs && now < playingFromMs + 600;
+
+  const inOvertime = !!(
+    endsAt &&
+    now >= endsAt &&
+    overtimeUntilMs &&
+    now < overtimeUntilMs &&
+    game?.status !== "finished"
+  );
+
+  // secondsLeft mostrato in HUD:
+  // - countdown: 60 fisso (parte del gioco effettivo)
+  // - overtime: countdown overtime 15→0
+  // - normale: ends_at - now
+  let secondsLeft = 60;
+  if (endsAt) {
+    if (inOvertime && overtimeUntilMs) {
+      secondsLeft = Math.max(0, Math.ceil((overtimeUntilMs - now) / 1000));
+    } else {
+      secondsLeft = Math.max(
         0,
         Math.floor((endsAt - Math.max(now, playingFromMs ?? now)) / 1000)
-      )
-    : 100;
+      );
+    }
+  }
 
-  // Finalizza partita quando il timer scade OPPURE quando il server l'ha marcata finished
+  // Finalizza partita: status='finished' arriva via subscribe quando server decide
   useEffect(() => {
     if (!game) return;
     if (game.status === "finished" && !finalizedRef.current) {
@@ -180,19 +196,60 @@ export default function GameClient({ gameId }: Props) {
       setFinished(true);
       return;
     }
-    if (endsAt && now >= endsAt && !finalizedRef.current) {
+    // Se il timer principale è scaduto e il server NON ha attivato overtime, e abbiamo già un risultato
+    // (player1_coins != player2_coins), il server al primo hit successivo finalizza. Però se nessuno
+    // colpisce più, dobbiamo finalizzare comunque dal client.
+    if (endsAt && now >= endsAt && !inOvertime && !finalizedRef.current && game.overtime_until === null) {
+      // Se i punteggi sono diversi: terminiamo client-side dopo 1.5s di grace per non bruciare l'overtime
+      if (game.player1_coins !== game.player2_coins && now >= endsAt + 1500) {
+        finalizedRef.current = true;
+        supabase.rpc("finalize_game", { p_game_id: gameId }).then(() => setFinished(true));
+      }
+    }
+    // Overtime scaduto senza vincitore
+    if (overtimeUntilMs && now >= overtimeUntilMs && !finalizedRef.current && game.status !== "finished") {
       finalizedRef.current = true;
       supabase.rpc("finalize_game", { p_game_id: gameId }).then(() => setFinished(true));
     }
-  }, [now, endsAt, game, gameId, supabase]);
+  }, [now, endsAt, overtimeUntilMs, inOvertime, game, gameId, supabase]);
 
-  // Cooldown effettivo: 1s tra colpi (server tollera 0.9s)
+  // Heartbeat + tick negli ultimi 20s e in overtime
+  useEffect(() => {
+    if (finished || inCountdown) return;
+
+    // Heartbeat sotto i 20s (overtime sempre)
+    const heartbeatActive = inOvertime || secondsLeft <= 20;
+    if (heartbeatActive) {
+      // intervallo: 1s normalmente, 0.5s sotto i 10s o in overtime stretto
+      const fast = inOvertime || secondsLeft <= 10;
+      const bucketSize = fast ? 500 : 1000;
+      const bucket = Math.floor(now / bucketSize);
+      if (bucket !== lastHeartbeatBucketRef.current) {
+        lastHeartbeatBucketRef.current = bucket;
+        play("heartbeat");
+      }
+    } else {
+      lastHeartbeatBucketRef.current = -1;
+    }
+
+    // Tick stridulo sotto i 5s
+    if (!inOvertime && secondsLeft <= 5 && secondsLeft > 0) {
+      const bucket = Math.floor(now / 1000);
+      if (bucket !== lastTickBucketRef.current) {
+        lastTickBucketRef.current = bucket;
+        play("tick");
+      }
+    } else if (secondsLeft > 5) {
+      lastTickBucketRef.current = -1;
+    }
+  }, [now, secondsLeft, inOvertime, inCountdown, finished]);
+
+  // Cooldown 1s
   const cooldownLeft = myState?.last_hit_at
     ? Math.max(0, new Date(myState.last_hit_at).getTime() + 1000 - now)
     : 0;
   const myEffects: ActiveEffect[] = myState?.active_effects ?? [];
 
-  // L'avversario non vede il mio score se ho fantasma attivo sui MIEI effetti
   const oppCanSeeMyScore = !myEffects.some(
     (e) =>
       e.type === "fantasma" &&
@@ -219,17 +276,19 @@ export default function GameClient({ gameId }: Props) {
         content?: BrickContent | null;
         blast_position?: number | null;
         xray?: number[];
+        streak?: number;
+        streak_completed?: boolean;
+        in_overtime?: boolean;
+        overtime_winner?: boolean;
       };
       if (!d?.ok) {
         play("crack");
         return;
       }
       if (d.my_side_broken && d.content) {
-        // Coin animation locale
         if (d.outcome === "won" && d.content === "coin") {
           setLastWonCoinAt({ position, ts: Date.now() });
         }
-        // Banner enfatico per i powerup
         if (d.outcome === "won" && d.content !== "coin" && d.content !== "empty") {
           setFlash({ kind: "found", content: d.content, id: Date.now() });
           const isBonus = BONUS.includes(d.content);
@@ -238,12 +297,15 @@ export default function GameClient({ gameId }: Props) {
           setFlash({ kind: "lost", content: d.content ?? undefined, id: Date.now() });
           setTimeout(() => play("collision"), 60);
         }
-        // outcome === "opp_taken": nessun banner. Il muro è semplicemente "bucato",
-        // l'utente non deve sapere cosa c'era.
       } else {
         play("crack");
       }
-      // Raggi-X: rivelo le 3 posizioni localmente
+      // Combo streak completata: bonus moneta + animazione
+      if (d.streak_completed) {
+        setComboAt(Date.now());
+        play("combo");
+      }
+      // Raggi-X
       if (d.xray && Array.isArray(d.xray) && d.xray.length > 0) {
         const next = new Map(revealedPositions);
         for (const p of d.xray) next.set(p, "empty");
@@ -253,7 +315,7 @@ export default function GameClient({ gameId }: Props) {
     [clientId, cooldownLeft, finished, inCountdown, myState, revealedPositions, supabase]
   );
 
-  // Accredito monete a fine partita (una sola volta)
+  // Monete a fine partita
   useEffect(() => {
     if (!finished || !game || !mySide || coinsCreditedRef.current) return;
     coinsCreditedRef.current = true;
@@ -276,6 +338,8 @@ export default function GameClient({ gameId }: Props) {
   const oppCoins = mySide === 1 ? game.player2_coins : game.player1_coins;
   const myNick = mySide === 1 ? game.player1_nick : game.player2_nick;
   const oppNick = mySide === 1 ? game.player2_nick : game.player1_nick;
+  const mySkin = mySide === 1 ? game.player1_skin : game.player2_skin;
+  const oppSkin = mySide === 1 ? game.player2_skin : game.player1_skin;
 
   const oppEffects: ActiveEffect[] = oppState?.active_effects ?? [];
   const iCanSeeOppScore = !oppEffects.some(
@@ -297,9 +361,36 @@ export default function GameClient({ gameId }: Props) {
         cooldownLeft={cooldownLeft}
         showOppScore={iCanSeeOppScore}
         oppCanSeeMyScore={oppCanSeeMyScore}
+        mySkin={mySkin}
+        oppSkin={oppSkin}
+        streak={myState?.streak ?? 0}
+        inOvertime={inOvertime}
       />
 
       <ActiveEffectsBar effects={myEffects} now={now} />
+
+      {/* Banner SUDDEN DEATH durante overtime */}
+      <AnimatePresence>
+        {inOvertime && (
+          <motion.div
+            key="sudden-death-banner"
+            initial={{ opacity: 0, y: -10, scale: 0.85 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.85 }}
+            transition={{ type: "spring", stiffness: 360, damping: 18 }}
+            className="mx-3 mt-1 mb-2"
+          >
+            <div className="px-3 py-2 bg-crack rounded-xl comic-border-thin text-center">
+              <div className="text-xs uppercase tracking-widest text-white/90 comic-text-stroke">
+                Sudden Death
+              </div>
+              <div className="text-base text-white comic-text-stroke">
+                Chi rompe per primo un mattone con contenuto vince
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex-1 flex items-center justify-center px-4 py-2">
         <BrickWall
@@ -313,8 +404,12 @@ export default function GameClient({ gameId }: Props) {
             (myState?.shots_remaining ?? 0) <= 0
           }
           revealed={revealedPositions}
+          opponentSkinId={oppSkin}
         />
       </div>
+
+      {/* SpicyOverlay: vignetta rossa pulsante negli ultimi 20s + overtime */}
+      <SpicyOverlay secondsLeft={secondsLeft} inOvertime={inOvertime} />
 
       <AnimatePresence>
         {flash && (
@@ -334,13 +429,15 @@ export default function GameClient({ gameId }: Props) {
             oppCoins={oppCoins}
             myNick={myNick ?? "?"}
             oppNick={oppNick ?? "?"}
+            mySkin={mySkin ?? "ladro"}
+            oppSkin={oppSkin ?? "ladro"}
             onPlayAgain={() => router.replace("/lobby")}
             onHome={() => router.replace("/")}
           />
         )}
       </AnimatePresence>
 
-      {/* Countdown pre-partita 3-2-1-GO! */}
+      {/* Countdown pre-partita */}
       <AnimatePresence>
         {(inCountdown || showGo) && (
           <motion.div
@@ -382,7 +479,7 @@ export default function GameClient({ gameId }: Props) {
         )}
       </AnimatePresence>
 
-      {/* Animazione moneta verso HUD */}
+      {/* Animazione moneta */}
       <AnimatePresence>
         {lastWonCoinAt && (
           <motion.div
@@ -399,7 +496,29 @@ export default function GameClient({ gameId }: Props) {
         )}
       </AnimatePresence>
 
-      {/* Pulsante "?" per aprire la legenda */}
+      {/* Combo animation */}
+      <AnimatePresence>
+        {comboAt && (
+          <motion.div
+            key={`combo-${comboAt}`}
+            initial={{ opacity: 1, scale: 0.6, rotate: -10 }}
+            animate={{ opacity: 0, scale: 1.4, y: -180, rotate: 6 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.1, ease: "easeOut" }}
+            onAnimationComplete={() => setComboAt(null)}
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-40"
+          >
+            <div className="px-4 py-2 bg-comic-green rounded-2xl comic-border halftone-bg text-center">
+              <div className="text-3xl text-white comic-text-stroke-lg leading-none">
+                COMBO!
+              </div>
+              <div className="text-xl text-white comic-text-stroke mt-0.5">+1 ¢</div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Pulsante "?" legenda */}
       <button
         onClick={() => setShowLegend(true)}
         aria-label="Legenda bonus e malus"
@@ -408,7 +527,6 @@ export default function GameClient({ gameId }: Props) {
         ?
       </button>
 
-      {/* Modal Legenda */}
       <AnimatePresence>
         {showLegend && (
           <motion.div
