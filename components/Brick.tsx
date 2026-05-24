@@ -93,9 +93,9 @@ export default function Brick({
       aria-label="Mattone"
     >
       {/* Crepe progressive in base ai colpi totali (vista condivisa).
-          Step 1: zigzag verticale.
-          Step 2: raggiera nera (8 linee che si irradiano dal centro).
-          Step 3: raggiera più densa con linee diagonali addizionali. */}
+          Step 1: piccola crepa zigzag verticale.
+          Step 2: la crepa principale si estende e si ramifica come un muro colpito.
+          Step 3: ulteriori ramificazioni minori che intensificano l'effetto rottura. */}
       {totalHits >= 1 && (
         <svg
           viewBox="0 0 40 40"
@@ -108,44 +108,46 @@ export default function Brick({
             strokeWidth="2.5"
             fill="none"
             strokeLinecap="round"
+            strokeLinejoin="round"
           />
 
-          {/* Raggiera step 2 — 8 linee dal centro verso fuori */}
+          {/* Step 2: rami principali che si dipartono dalla crepa centrale */}
           {totalHits >= 2 && (
             <g
               stroke="#3A2410"
               strokeWidth="2"
-              strokeLinecap="round"
               fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <line x1="20" y1="20" x2="4"  y2="4" />
-              <line x1="20" y1="20" x2="36" y2="4" />
-              <line x1="20" y1="20" x2="4"  y2="36" />
-              <line x1="20" y1="20" x2="36" y2="36" />
-              <line x1="20" y1="20" x2="2"  y2="20" strokeWidth="1.6" />
-              <line x1="20" y1="20" x2="38" y2="20" strokeWidth="1.6" />
-              <line x1="20" y1="20" x2="20" y2="2"  strokeWidth="1.6" />
-              <line x1="20" y1="20" x2="20" y2="38" strokeWidth="1.6" />
+              {/* Ramo sinistra-alto dalla cuspide (18,14) */}
+              <path d="M 18 14 L 10 11 L 4 13" />
+              {/* Ramo destra dal nodo (24,20) */}
+              <path d="M 24 20 L 32 19 L 38 16" />
+              {/* Ramo basso-sinistra dal nodo (16,26) */}
+              <path d="M 16 26 L 8 30 L 4 36" />
+              {/* Ramo destra-basso dalla coda (22,36) */}
+              <path d="M 22 36 L 28 32 L 34 34" />
             </g>
           )}
 
-          {/* Step 3 — raggiera secondaria più sottile per riempire i gap */}
+          {/* Step 3: rametti minori per dare sensazione di rottura imminente */}
           {totalHits >= 3 && (
             <g
               stroke="#3A2410"
               strokeWidth="1.4"
-              strokeLinecap="round"
               fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
               opacity="0.85"
             >
-              <line x1="20" y1="20" x2="10" y2="2" />
-              <line x1="20" y1="20" x2="30" y2="2" />
-              <line x1="20" y1="20" x2="2"  y2="10" />
-              <line x1="20" y1="20" x2="38" y2="10" />
-              <line x1="20" y1="20" x2="2"  y2="30" />
-              <line x1="20" y1="20" x2="38" y2="30" />
-              <line x1="20" y1="20" x2="10" y2="38" />
-              <line x1="20" y1="20" x2="30" y2="38" />
+              <path d="M 10 11 L 8 5" />
+              <path d="M 10 11 L 4 8" />
+              <path d="M 32 19 L 34 11" />
+              <path d="M 32 19 L 38 24" />
+              <path d="M 8 30 L 12 24" />
+              <path d="M 28 32 L 30 26" />
+              <path d="M 24 20 L 22 28" />
             </g>
           )}
         </svg>
